@@ -282,7 +282,7 @@ class S3
 	* @param boolean $returnCommonPrefixes Set to true to return CommonPrefixes
 	* @return array | false
 	*/
-	public static function getBucket($bucket, $prefix = null, $marker = null, $maxKeys = null, $delimiter = null, $returnCommonPrefixes = false)
+	public static function getBucket($bucket, $prefix = null, $delimiter = null, $marker = null, $maxKeys = null, $returnCommonPrefixes = true)
 	{
 		$rest = new S3Request('GET', $bucket, '', self::$endpoint);
 		if ($maxKeys == 0) $maxKeys = null;

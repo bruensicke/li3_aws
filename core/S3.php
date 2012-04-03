@@ -16,6 +16,7 @@ class S3 extends \lithium\core\staticObject {
 	protected static $_classes = array(
 		'socket' => 'li3_aws\util\S3',
 		'connection' => 'lithium\data\Connections',
+		'collection' => 'lithium\util\Collection',
 		'logger' => 'lithium\analysis\Logger',
 		'cache' => 'lithium\storage\Cache'
 	);
@@ -28,14 +29,16 @@ class S3 extends \lithium\core\staticObject {
 	public static $_object;
 
 	public static function buckets() {
-		$buckets = self::_connect()->listBuckets();
-		return $buckets;
+		$data = self::_connect()->listBuckets();
+		return new self::$_classes['collection'](compact('data'));
 	}
 
-	public static function bucket($name, array $options = array()) {
+	public static function bucket($name, $folder = null, array $options = array()) {
 		$defaults = array(
 			'cache' => 'default',
-			'cache_key' => 's3.bucket.{:nane}');
+			'cache_key' => 's3.bucket.{:name}',
+			'delimiter' => '/'
+		);
 		$options += $defaults;
 		$cache = static::$_classes['cache'];
 		$cache_key = String::insert($options['cache_key'], compact('name'));
@@ -48,14 +51,19 @@ class S3 extends \lithium\core\staticObject {
 		if ($location == 'EU') {
 			$_object->setEndpoint('s3-eu-west-1.amazonaws.com');
 		}
-		$result = $_object->getBucket($name);
+		$data = $_object->getBucket($name, $folder, $options['delimiter']);
+		// debug($data);exit;
 		$folders = array();
-		foreach ($result as $key => $item) {
-			$result[$key]['is_folder'] = (boolean) (substr($key, -1) == '/');
-			$result[$key]['is_file'] = (boolean) (!$result[$key]['is_folder']);
-			$result[$key]['url'] = $name . '.' . S3_utility::$endpoint . '/' . $key;
+		foreach ($data as $key => $item) {
+			$data[$key]['name'] = (!empty($data[$key]['name'])) ? $data[$key]['name'] : $key;
+			$data[$key]['bucket'] = $name;
+			$data[$key]['is_folder'] = (boolean) (substr($key, -1) == '/');
+			$data[$key]['is_file'] = (boolean) (!$data[$key]['is_folder']);
+			$data[$key]['url'] = $name . '.' . S3_utility::$endpoint . '/' . $key;
 		}
-		$cache::write($options['cache'], $cache_key, $result);
+		// debug($data);exit;
+		$result = new self::$_classes['collection'](compact('data'));
+		// $cache::write($options['cache'], $cache_key, $result);
 		return $result;
 	}
 
