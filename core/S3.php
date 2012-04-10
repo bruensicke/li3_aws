@@ -28,6 +28,38 @@ class S3 extends \lithium\core\staticObject {
 	 */
 	public static $_object;
 
+	// can be private, public-read, public-read-write or authenticated-read
+	public static function create($input = array(), array $options = array()) {
+		$defaults = array('access' => 'private', 'meta' => array(), 'type' => 'text/plain');
+		$options += $defaults;
+		extract($input);
+		if (!empty($input['file'])) {
+			$body = file_get_contents($input['file']);
+			$type = substr(strrchr($file, '.'), 1);
+			switch ($type) {
+				case 'bmp':
+				case 'png':
+				case 'gif':
+				case 'jpg':
+				case 'jpeg':
+					$options['type'] = "image/$type";
+			}
+		}
+		$_object = self::_connect($input['bucket']);
+		$success = $_object->putObjectString($body, $bucket, $path, $options['access'], $options['meta'], $options['type']);
+		if (!$success) {
+			return false;
+		}
+		return String::insert("http://{:bucket}.s3.amazonaws.com/{:path}", compact('bucket', 'path'));
+	}
+
+	public static function info($bucket, $path) {
+		$_object = self::_connect($bucket);
+		$result = $_object->getObjectInfo($bucket, $path);
+		$result['url'] = String::insert("http://{:bucket}.s3.amazonaws.com/{:path}", compact('bucket', 'path'));
+		return $result;
+	}
+
 	public static function buckets() {
 		$data = self::_connect()->listBuckets();
 		return new self::$_classes['collection'](compact('data'));
@@ -46,11 +78,7 @@ class S3 extends \lithium\core\staticObject {
 			return $result;
 		}
 
-		$_object = self::_connect();
-		$location = $_object->getBucketLocation($name);
-		if ($location == 'EU') {
-			$_object->setEndpoint('s3-eu-west-1.amazonaws.com');
-		}
+		$_object = self::_connect($name);
 		$data = $_object->getBucket($name, $folder, $options['delimiter']);
 		// debug($data);exit;
 		$folders = array();
@@ -72,7 +100,7 @@ class S3 extends \lithium\core\staticObject {
 	 *
 	 * @return object
 	 */
-	protected static function _connect() {
+	protected static function _connect($bucket = null) {
 		if (static::$_object) {
 			return static::$_object;
 		}
@@ -81,6 +109,12 @@ class S3 extends \lithium\core\staticObject {
 		$socket = static::$_classes['socket'];
 		$config = $connection::get('s3', array('config' => true));
 		$socket = new $socket($config['key'], $config['secret']);
+		if (!empty($bucket)) {
+			$location = $socket->getBucketLocation($bucket);
+			if ($location == 'EU') {
+				$socket->setEndpoint('s3-eu-west-1.amazonaws.com');
+			}
+		}
 		return static::$_object = $socket;
 	}
 
