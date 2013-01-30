@@ -27,6 +27,19 @@ class S3 extends \lithium\core\staticObject {
 	 * @var object
 	 */
 	public static $_object;
+	
+	// default access level for options is public-read, but can be changed to private, public-read-write or authenticated-read
+	public static function copy($input = array(), array $options = array()) {
+        $defaults = array('access'=> 'public-read', 'meta'=>array());
+        $options += $defaults;
+        extract($input);
+        $_object = self::_connect($input['src_bucket']);
+        $success = $_object->copyObject($input['src_bucket'],$input['src_uri'],$input['dst_bucket'],$input['dst_uri'],$options['access'],$options['meta']);
+        if (!$success) {
+            return false;
+        }
+        return true;
+    }
 
 	// can be private, public-read, public-read-write or authenticated-read
 	public static function create($input = array(), array $options = array()) {
